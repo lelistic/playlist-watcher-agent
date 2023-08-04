@@ -5,19 +5,18 @@ FROM python:3.8-slim
 WORKDIR /app
 
 # Install necessary packages
-RUN apt-get update && apt-get install -y wget unzip curl
+RUN apt-get update && apt-get install -y wget unzip curl gnupg
 
-# Download and install Chrome browser
-RUN curl -sS -o - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - && \
-    echo "deb http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list && \
-    apt-get update && \
-    apt-get install -y google-chrome-stable
+# Install Google Chrome
+RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - \
+    && echo "deb http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update && apt-get install -y google-chrome-stable
 
-# Download and install ChromeDriver
-ARG CHROME_DRIVER_VERSION=94.0.4606.61
-RUN wget -q -O /tmp/chromedriver.zip http://chromedriver.storage.googleapis.com/${CHROME_DRIVER_VERSION}/chromedriver_linux64.zip && \
-    unzip /tmp/chromedriver.zip chromedriver -d /usr/bin/ && \
-    rm /tmp/chromedriver.zip
+# Get the latest version of ChromeDriver (compatible with installed Chrome version)
+RUN LATEST_CHROMEDRIVER_VERSION=$(curl -sS https://chromedriver.storage.googleapis.com/LATEST_RELEASE) \
+    && wget -q -O /tmp/chromedriver.zip http://chromedriver.storage.googleapis.com/${LATEST_CHROMEDRIVER_VERSION}/chromedriver_linux64.zip \
+    && unzip /tmp/chromedriver.zip chromedriver -d /usr/bin/ \
+    && rm /tmp/chromedriver.zip
 
 # Install Python dependencies
 COPY requirements.txt .
@@ -29,5 +28,5 @@ COPY youtube_watch.py .
 # Set environment variables
 ENV PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-# Run the Python script
-CMD ["python", "youtube_watch.py"]
+# Run the Python script in an infinite loop
+CMD while true; do python youtube_watch.py; done

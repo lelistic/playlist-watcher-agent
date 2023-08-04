@@ -119,3 +119,12 @@ Please, use this code responsibly and ensure compliance with YouTube's terms of 
 
 --- 
 
+## Troubleshooting
+
+### urllib3: ValueError: Timeout value connect was <object object at 0x7efe5adb9aa0>, but it must be an int, float or None
+
+A new version 2.0.2 of urllib3 was released on May 4, 2023, which can be seen here: urllib3 2.0.2 - Release history
+
+As my job installs the Python libraries in the beginning of the job using pip in a virtual Python environment, it started installing the latest version of urllib3 which had some issues. So, it is looks an upstream issue.
+
+I fixed it by adding urllib3>=1.26.15,<2 in my requirements.txt file.
