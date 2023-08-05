@@ -1,1 +1,1 @@
-docker build -t youtube_agent . && docker run --name youtube_agent_container --restart always youtube_agent
+docker build -t youtube_agent . && docker run -d --name youtube_agent_container --restart always youtube_agent

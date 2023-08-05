@@ -117,6 +117,47 @@ To run the script within a Docker container:
 
 Please, use this code responsibly and ensure compliance with YouTube's terms of service. Automated YouTube interactions might lead to account restrictions or other consequences.
 
+
+To run the Docker container in the background (detached mode), you can use the `-d` flag when running the `docker run` command. This flag instructs Docker to run the container in the background, and you will get back the command prompt immediately after starting the container.
+
+Here's how to run the Docker container in the background:
+
+1. Rebuild the Docker image (if you haven't already):
+
+```bash
+docker build -t youtube_agent .
+```
+
+2. Run the Docker container in detached mode (`-d` flag) and add the `--restart always` option to ensure the container restarts automatically:
+
+```bash
+docker run -d --name youtube_agent_container --restart always youtube_agent
+```
+
+The `-d` flag tells Docker to run the container in the background, and the `--restart always` option ensures that the container restarts automatically if it stops for any reason.
+
+Now, the Docker container will run in the background, and you will get back the command prompt immediately. The YouTube agent will keep watching the videos continuously, and the container will restart automatically if it stops or crashes. You can view the logs of the container using the `docker logs` command:
+
+```bash
+docker logs youtube_agent_container
+```
+
+This will display the verbose logs that we added to the script, showing the progress of the agent as it watches the videos.
+
+To stop the container, you can use the `docker stop` command:
+
+```bash
+docker stop youtube_agent_container
+```
+
+And to start it again:
+
+```bash
+docker start youtube_agent_container
+```
+
+With this setup, the Docker container will run the YouTube agent continuously in the background, ensuring that your videos are being watched as intended.
+
 --- 
 
 ## Troubleshooting
