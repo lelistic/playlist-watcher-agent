@@ -1,0 +1,9 @@
+version: "3.8"
+services:
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: youtube_agent
+    container_name: youtube_agent_container
+    restart: always

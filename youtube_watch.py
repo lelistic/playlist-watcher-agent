@@ -5,9 +5,27 @@ import time
 import sys
 from datetime import datetime
 import random
+import requests
 
 # Initialize a dictionary to store the number of views for each video
 video_views = {}
+
+# Fetch a list of free proxy servers
+def get_free_proxies():
+    url = "https://www.sslproxies.org/"
+    response = requests.get(url)
+    proxies = []
+    if response.status_code == 200:
+        rows = response.text.split("<tr>")
+        for row in rows[1:]:
+            cols = row.split("</td>")
+            if len(cols) >= 2:
+                ip = cols[0].split(">")[1]
+                port = cols[1].split(">")[1]
+                proxies.append(f"{ip}:{port}")
+    return proxies
+
+
 
 def get_video_links_from_playlist(playlist_link):
     path_to_webdriver = '/usr/bin/chromedriver'  # Path to ChromeDriver in the Docker container
@@ -47,6 +65,28 @@ def get_cooldown_based_on_time():
         return random.randint(5, 10)  # Random cooldown between 5 to 10 seconds
     else:  # In the morning
         return random.randint(15, 30)  # Random cooldown between 15 to 30 seconds
+
+# Function to calculate the final cooldown duration based on various factors
+def calculate_cooldown_duration(video_link, proxy=None):
+    # Apply dynamic adjustment to cooldown calculation based on real-time feedback
+    min_cooldown = 10
+    max_cooldown = 30
+    cooldown_duration = max_cooldown - (video_views.get(video_link, 0) * 2)
+    cooldown_duration = max(min(cooldown_duration, max_cooldown), min_cooldown)
+
+    # Introduce randomness to cooldown duration
+    cooldown_duration += random.randint(10, 20)
+
+    # Introduce time-based variation (Overall pacing mechanism)
+    now = datetime.now()
+    hour = now.hour
+
+    if hour >= 17:  # After 5 pm
+        cooldown_duration += random.randint(5, 10)
+    else:  # In the morning
+        cooldown_duration += random.randint(15, 30)
+
+    return cooldown_duration
 
 def watch_playlist(playlist_link, num_repeats=1, num_videos_to_watch=5):
     video_links = get_video_links_from_playlist(playlist_link)
@@ -120,6 +160,30 @@ def watch_video(video_link, video_number):
         driver.quit()
 
 
-# Example usage:
-playlist_link = "https://www.youtube.com/playlist?list=PLMrlsG9QD-qixBzZurP7cv54lCzoSFmEo"#"https://www.youtube.com/playlist?list=PL1234567890"  # Replace with the desired playlist link
-watch_playlist(playlist_link, num_repeats=15, num_videos_to_watch=5)
+if __name__=='__main__':
+    playlist_link = "https://www.youtube.com/playlist?list=PLMrlsG9QD-qixBzZurP7cv54lCzoSFmEo"#"https://www.youtube.com/playlist?list=PL1234567890"  # Replace with the desired playlist link
+    video_links = get_video_links_from_playlist(playlist_link)
+    total_videos = len(video_links)
+
+    proxies = get_free_proxies()
+
+    for repeat in range(15):
+        print(f"\n---- Repeat #{repeat + 1} ----")
+
+        # Shuffle the order of videos in the playlist for better diversification
+        random.shuffle(video_links)
+
+        for video_number, video_link in enumerate(video_links, start=1):
+            proxy = random.choice(proxies)
+
+            cooldown_duration = calculate_cooldown_duration(video_link, proxy)
+
+            print(f"\nVideo {video_number}/{total_videos}: {video_link}")
+            print(f"Cooldown: {cooldown_duration} seconds")
+
+            watch_video(video_link, video_number, proxy)
+
+            # Update the views count for the video
+            video_views[video_link] = video_views.get(video_link, 0) + 1
+
+            time.sleep(cooldown_duration)
