@@ -24,6 +24,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the Python script to the container
 COPY youtube_watch.py .
+COPY curated_proxies.txt .
 
 # Set environment variables
 ENV PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
