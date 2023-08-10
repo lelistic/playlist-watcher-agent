@@ -5,27 +5,21 @@ import time
 import sys
 from datetime import datetime
 import random
-import requests
+
 
 # Initialize a dictionary to store the number of views for each video
 video_views = {}
 
-# Fetch a list of free proxy servers
-def get_free_proxies():
-    url = "https://www.sslproxies.org/"
-    response = requests.get(url)
-    proxies = []
-    if response.status_code == 200:
-        rows = response.text.split("<tr>")
-        for row in rows[1:]:
-            cols = row.split("</td>")
-            if len(cols) >= 2:
-                ip = cols[0].split(">")[1]
-                port = cols[1].split(">")[1]
-                proxies.append(f"{ip}:{port}")
-    return proxies
+def get_curated_proxies_from_file():
+    curated_proxies = []
 
+    with open('curated_proxies.txt', 'r') as f:
+        for line in f:
+            curated_proxies.append(line.strip())
 
+    return curated_proxies
+
+curated_proxies = get_curated_proxies_from_file()
 
 def get_video_links_from_playlist(playlist_link):
     path_to_webdriver = '/usr/bin/chromedriver'  # Path to ChromeDriver in the Docker container
@@ -57,7 +51,7 @@ def get_video_links_from_playlist(playlist_link):
     return video_links
 
 # Function to calculate the final cooldown duration based on various factors
-def calculate_cooldown_duration(video_link, proxy=None):
+def calculate_cooldown_duration(video_link):
     # Apply dynamic adjustment to cooldown calculation based on real-time feedback
     min_cooldown = 10
     max_cooldown = 30
@@ -90,15 +84,14 @@ def watch_video(video_link, video_number):
     driver = webdriver.Chrome(executable_path=path_to_webdriver, options=options)
     driver.set_page_load_timeout(10)  # Set page load timeout to 10 seconds (adjust as needed)
 
-    proxies = get_free_proxies()
-
+    proxy = None
     retries = 0
     max_retries = 3
     while retries < max_retries:
         try:
-            proxy = random.choice(proxies)
+            proxy = random.choice(curated_proxies)
             if proxy:
-                options.add_argument(f'--proxy-server={proxy}')
+                options.add_argument("--proxy-server={}".format(proxy))
 
             driver.get(video_link)
             
@@ -121,6 +114,7 @@ def watch_video(video_link, video_number):
 
         except Exception as e:
             print(f"An error occurred while watching Video {video_number} with Proxy {proxy}: {e}")
+            curated_proxies.remove(proxy)
             retries += 1
             if retries < max_retries:
                 print(f"Retrying video {video_number} with a new proxy...\n")
@@ -134,7 +128,8 @@ def watch_video(video_link, video_number):
 
 
 if __name__=='__main__':
-    playlist_link = "https://www.youtube.com/playlist?list=PLMrlsG9QD-qixBzZurP7cv54lCzoSFmEo"#"https://www.youtube.com/playlist?list=PL1234567890"  # Replace with the desired playlist link
+    playlist_link = "https://www.youtube.com/playlist?list=PLMrlsG9QD-qixBzZurP7cv54lCzoSFmEo"
+    #playlist_link = "https://www.youtube.com/playlist?list=PLMrlsG9QD-qgy7cWdalPDz7MgCqkLTUPs"
     video_links = get_video_links_from_playlist(playlist_link)
     total_videos = len(video_links)
 
@@ -143,9 +138,9 @@ if __name__=='__main__':
     random.shuffle(video_links)
 
     for video_number, video_link in enumerate(video_links):
-        proxy = None
+        
 
-        cooldown_duration = calculate_cooldown_duration(video_link, proxy)
+        cooldown_duration = calculate_cooldown_duration(video_link)
 
         print(f"\nVideo {video_number+1}/{total_videos}: {video_link}")
         print(f"Cooldown: {cooldown_duration} seconds")
