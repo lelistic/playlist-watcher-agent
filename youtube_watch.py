@@ -50,8 +50,9 @@ def get_video_links_from_playlist(playlist_link):
 
     return video_links
 
-# Function to calculate the final cooldown duration based on various factors
 def calculate_cooldown_duration(video_link):
+    """Function to calculate the final cooldown duration based on various factors"""
+    
     # Apply dynamic adjustment to cooldown calculation based on real-time feedback
     min_cooldown = 10
     max_cooldown = 30
@@ -72,6 +73,14 @@ def calculate_cooldown_duration(video_link):
 
     return cooldown_duration
 
+def get_video_duration(driver):
+    try:
+        duration_text = driver.find_element(By.CSS_SELECTOR, '.ytp-time-duration').text
+        minutes, seconds = map(int, duration_text.split(':'))
+        return minutes * 60 + seconds
+    except Exception as e:
+        print(f"Error getting video duration: {e}")
+        return 1
 
 def watch_video(video_link, video_number):
     path_to_webdriver = '/usr/bin/chromedriver'  # Path to ChromeDriver in the Docker container
@@ -96,13 +105,35 @@ def watch_video(video_link, video_number):
             driver.get(video_link)
             
             # Extract the video duration from the page
-            duration_element = driver.find_element(By.CSS_SELECTOR, '.ytp-time-duration')
-            video_duration = duration_element.text
-            total_seconds = sum(int(x) * 60 ** i for i, x in enumerate(reversed(video_duration.split(":"))))
+            total_seconds = get_video_duration(driver)
             
             print(f"Watching Video {video_number}: {video_link} with Proxy {proxy}")
-            print(f"Video Duration: {video_duration} (Total seconds: {total_seconds})")
+            print(f"Video Total seconds: {total_seconds}")
             
+            # Check if the video is playing or paused
+            is_playing = driver.execute_script(
+                "return document.querySelector('.html5-video-player').paused === false;"
+            )
+
+            if not is_playing:
+                # Click the video play button to start playback
+                play_button = driver.find_element(By.CSS_SELECTOR, 'button.ytp-large-play-button')
+                play_button.click()
+
+            # Get the total duration of the video
+            video_duration = get_video_duration(driver)
+
+            # Calculate a random start point within the range of 22% to 47%
+            start_percentage = random.uniform(0.22, 0.47)
+            start_time = int(start_percentage * video_duration)
+
+            # Seek to the calculated start time
+            seek_bar = driver.find_element(By.CSS_SELECTOR, 'input.ytp-progress-bar')
+            driver.execute_script(f"arguments[0].value = {start_time}", seek_bar)
+            seek_bar.send_keys(Keys.ENTER)
+
+
+
             # Wait for the total duration of the video
             for seconds_left in range(total_seconds, 0, -1):
                 sys.stdout.write(f"\rTime left: {seconds_left} seconds")
