@@ -73,76 +73,76 @@ def watch_video(video_link, video_number):
     proxy = random.choice(internal_proxies)
     print("Proxy: ", proxy)
     result_ = False
-    try:
+    
         
         
-        driver = get_driver(proxy)
-        
-        retries = 0
-        max_retries = 3
-        while retries < max_retries:
-        
-            try:
-                driver.get(video_link)
-                
-                # Extract the video duration from the page
-                total_seconds = get_video_duration(driver)
-                
-                print(f"Watching Video {video_number}: {video_link} with Proxy {proxy}")
-                print(f"Video Total seconds: {total_seconds}")
-                
-                # Check if the video is playing or paused
-                is_playing = driver.execute_script(
-                    "return document.querySelector('.html5-video-player').paused === false;"
-                )
+    driver = get_driver(proxy)
+    
+    retries = 0
+    max_retries = 3
+    while retries < max_retries:
+    
+        try:
+            driver.get(video_link)
+            time.sleep(20)
+            # Extract the video duration from the page
+            total_seconds = get_video_duration(driver)
+            
+            print(f"Watching Video {video_number}: {video_link} with Proxy {proxy}")
+            print(f"Video Total seconds: {total_seconds}")
+            
+            # Check if the video is playing or paused
+            is_playing = driver.execute_script(
+                "return document.querySelector('.html5-video-player').paused === false;"
+            )
 
-                if not is_playing:
-                    # Click the video play button to start playback
-                    play_button = driver.find_element(By.CSS_SELECTOR, 'button.ytp-large-play-button')
-                    play_button.click()
+            if not is_playing:
+                # Click the video play button to start playback
+                play_button = driver.find_element(By.CSS_SELECTOR, 'button.ytp-large-play-button')
+                play_button.click()
 
-                # Find the total duration of the video
-                total_duration_element = driver.find_element(By.CLASS_NAME, 'ytp-time-duration')
-                total_duration_text = total_duration_element.text
-                total_duration_seconds = sum(int(x) * 60 ** i for i, x in enumerate(reversed(total_duration_text.split(":"))))
+            # Find the total duration of the video
+            total_duration_element = driver.find_element(By.CLASS_NAME, 'ytp-time-duration')
+            total_duration_text = total_duration_element.text
+            total_duration_seconds = sum(int(x) * 60 ** i for i, x in enumerate(reversed(total_duration_text.split(":"))))
 
-                # Calculate a random start point within the range of 22% to 47%
-                start_point = total_duration_seconds * 0.22 + (total_duration_seconds * 0.25 * random.random())
-                
-                # Seek to the calculated start point
-                progress_bar = driver.find_element(By.CLASS_NAME, 'ytp-progress-bar')
-                progress_element = progress_bar.find_element(By.CLASS_NAME, 'ytp-play-progress')
-                progress_width = start_point / total_duration_seconds
-                driver.execute_script("arguments[0].style.transform = 'scaleX({})'".format(progress_width), progress_element)
+            # Calculate a random start point within the range of 22% to 47%
+            start_point = total_duration_seconds * 0.22 + (total_duration_seconds * 0.25 * random.random())
+            
+            # Seek to the calculated start point
+            progress_bar = driver.find_element(By.CLASS_NAME, 'ytp-progress-bar')
+            progress_element = progress_bar.find_element(By.CLASS_NAME, 'ytp-play-progress')
+            progress_width = start_point / total_duration_seconds
+            driver.execute_script("arguments[0].style.transform = 'scaleX({})'".format(progress_width), progress_element)
 
-                print("Watching video with Proxy:", proxy)
-                print("Video started from {:.2f}%".format(start_point / total_duration_seconds * 100))
-                
-                # Wait for the total duration of the video
-                time.sleep(total_duration_seconds)
-                
-                print("\nVideo watched successfully!")
-                result_ = True  # Proxy worked successfully
-                break
+            print("Watching video with Proxy:", proxy)
+            print("Video started from {:.2f}%".format(start_point / total_duration_seconds * 100))
+            
+            # Wait for the total duration of the video
+            time.sleep(total_duration_seconds)
+            
+            print("\nVideo watched successfully!")
+            result_ = True  # Proxy worked successfully
+            break
 
-            except Exception as e:
-                print(f"An error occurred while watching Video {video_number} with Proxy {proxy}: {e}")
-                internal_proxies.remove(proxy)
-                retries += 1
-                if retries < max_retries:
-                    print(f"Retrying video {video_number} with a new proxy...\n")
-                    if driver:
-                        driver.quit()  # Quit the current driver
-                    proxy = random.choice(internal_proxies)
-                    driver = get_driver(proxy)
-                else:
-                    print(f"Reached maximum retries for video {video_number}. Moving on to the next video.\n")
-                    if driver:
-                        driver.quit()
-                    # Proxy didn't work after max retries
-    finally:
-        if driver:
-            driver.quit()
+        except Exception as e:
+            print(f"An error occurred while watching Video {video_number} with Proxy {proxy}: {e}")
+            internal_proxies.remove(proxy)
+            retries += 1
+            if retries < max_retries:
+                print(f"Retrying video {video_number} with a new proxy...\n")
+                if driver:
+                    driver.quit()  # Quit the current driver
+                proxy = random.choice(internal_proxies)
+                driver = get_driver(proxy)
+            else:
+                print(f"Reached maximum retries for video {video_number}. Moving on to the next video.\n")
+                if driver:
+                    driver.quit()
+                # Proxy didn't work after max retries
+    
+    if driver:
+        driver.quit()
 
     return result_  # Proxy didn't work even after retries
 
