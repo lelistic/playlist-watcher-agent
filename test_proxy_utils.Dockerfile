@@ -31,16 +31,13 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the Python script to the container
-COPY youtube_watch.py .
-COPY curated_proxies.txt .
+COPY . .
 
-RUN mkdir proxy_utils
-COPY proxy_utils/__init__.py ./proxy_utils/
 
 # Set environment variables
 ENV PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 ENV PATH="/usr/bin/chromedriver:${PATH}"
 
-# Run the Python script in an infinite loop
-CMD while true; do python youtube_watch.py; done
+# Run the Python script 
+CMD python proxy_utils/verify_proxies.py

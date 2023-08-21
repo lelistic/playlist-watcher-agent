@@ -1,34 +1,18 @@
-from selenium import webdriver
+
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from proxy_utils import get_driver, curated_proxies
 import time
-import sys
+
 from datetime import datetime
 import random
-
 
 # Initialize a dictionary to store the number of views for each video
 video_views = {}
 
-def get_curated_proxies_from_file():
-    curated_proxies = []
-
-    with open('curated_proxies.txt', 'r') as f:
-        for line in f:
-            curated_proxies.append(line.strip())
-
-    return curated_proxies
-
-curated_proxies = get_curated_proxies_from_file()
-
 def get_video_links_from_playlist(playlist_link):
-    path_to_webdriver = '/usr/bin/chromedriver'  # Path to ChromeDriver in the Docker container
-    options = webdriver.ChromeOptions()
-    options.add_argument('--headless')  # Run Chrome headless
-    options.add_argument('--disable-gpu')
-    options.add_argument('--no-sandbox')
-    driver = webdriver.Chrome(executable_path=path_to_webdriver, options=options)
-
+    driver = get_driver(None)
+    video_links = []
     try:
         driver.get(playlist_link)
         time.sleep(5)  # Wait for the page to load
@@ -44,7 +28,7 @@ def get_video_links_from_playlist(playlist_link):
 
     except Exception as e:
         print("An error occurred:", e)
-        video_links = []
+        
     finally:
         driver.quit()
 
@@ -83,79 +67,84 @@ def get_video_duration(driver):
         return 1
 
 def watch_video(video_link, video_number):
-    path_to_webdriver = '/usr/bin/chromedriver'  # Path to ChromeDriver in the Docker container
-    options = webdriver.ChromeOptions()
-
-    options.add_argument('--headless')  # Run Chrome headless
-    options.add_argument('--disable-gpu')
-    options.add_argument('--no-sandbox')
     
-    driver = webdriver.Chrome(executable_path=path_to_webdriver, options=options)
-    driver.set_page_load_timeout(10)  # Set page load timeout to 10 seconds (adjust as needed)
+    internal_proxies = curated_proxies.copy()
+    driver = None
+    proxy = random.choice(internal_proxies)
+    print("Proxy: ", proxy)
+    result_ = False
+    try:
+        
+        
+        driver = get_driver(proxy)
+        
+        retries = 0
+        max_retries = 3
+        while retries < max_retries:
+        
+            try:
+                driver.get(video_link)
+                
+                # Extract the video duration from the page
+                total_seconds = get_video_duration(driver)
+                
+                print(f"Watching Video {video_number}: {video_link} with Proxy {proxy}")
+                print(f"Video Total seconds: {total_seconds}")
+                
+                # Check if the video is playing or paused
+                is_playing = driver.execute_script(
+                    "return document.querySelector('.html5-video-player').paused === false;"
+                )
 
-    proxy = None
-    retries = 0
-    max_retries = 3
-    while retries < max_retries:
-        try:
-            proxy = random.choice(curated_proxies)
-            if proxy:
-                options.add_argument("--proxy-server={}".format(proxy))
+                if not is_playing:
+                    # Click the video play button to start playback
+                    play_button = driver.find_element(By.CSS_SELECTOR, 'button.ytp-large-play-button')
+                    play_button.click()
 
-            driver.get(video_link)
-            
-            # Extract the video duration from the page
-            total_seconds = get_video_duration(driver)
-            
-            print(f"Watching Video {video_number}: {video_link} with Proxy {proxy}")
-            print(f"Video Total seconds: {total_seconds}")
-            
-            # Check if the video is playing or paused
-            is_playing = driver.execute_script(
-                "return document.querySelector('.html5-video-player').paused === false;"
-            )
+                # Find the total duration of the video
+                total_duration_element = driver.find_element(By.CLASS_NAME, 'ytp-time-duration')
+                total_duration_text = total_duration_element.text
+                total_duration_seconds = sum(int(x) * 60 ** i for i, x in enumerate(reversed(total_duration_text.split(":"))))
 
-            if not is_playing:
-                # Click the video play button to start playback
-                play_button = driver.find_element(By.CSS_SELECTOR, 'button.ytp-large-play-button')
-                play_button.click()
+                # Calculate a random start point within the range of 22% to 47%
+                start_point = total_duration_seconds * 0.22 + (total_duration_seconds * 0.25 * random.random())
+                
+                # Seek to the calculated start point
+                progress_bar = driver.find_element(By.CLASS_NAME, 'ytp-progress-bar')
+                progress_element = progress_bar.find_element(By.CLASS_NAME, 'ytp-play-progress')
+                progress_width = start_point / total_duration_seconds
+                driver.execute_script("arguments[0].style.transform = 'scaleX({})'".format(progress_width), progress_element)
 
-            # Get the total duration of the video
-            video_duration = get_video_duration(driver)
+                print("Watching video with Proxy:", proxy)
+                print("Video started from {:.2f}%".format(start_point / total_duration_seconds * 100))
+                
+                # Wait for the total duration of the video
+                time.sleep(total_duration_seconds)
+                
+                print("\nVideo watched successfully!")
+                result_ = True  # Proxy worked successfully
+                break
 
-            # Calculate a random start point within the range of 22% to 47%
-            start_percentage = random.uniform(0.22, 0.47)
-            start_time = int(start_percentage * video_duration)
-
-            # Seek to the calculated start time
-            seek_bar = driver.find_element(By.CSS_SELECTOR, 'input.ytp-progress-bar')
-            driver.execute_script(f"arguments[0].value = {start_time}", seek_bar)
-            seek_bar.send_keys(Keys.ENTER)
-
-
-
-            # Wait for the total duration of the video
-            for seconds_left in range(total_seconds, 0, -1):
-                sys.stdout.write(f"\rTime left: {seconds_left} seconds")
-                sys.stdout.flush()
-                time.sleep(1)
-            
-            print("\nVideo watched successfully!")
-            return True  # Proxy worked successfully
-
-        except Exception as e:
-            print(f"An error occurred while watching Video {video_number} with Proxy {proxy}: {e}")
-            curated_proxies.remove(proxy)
-            retries += 1
-            if retries < max_retries:
-                print(f"Retrying video {video_number} with a new proxy...\n")
-            else:
-                print(f"Reached maximum retries for video {video_number}. Moving on to the next video.\n")
-                return False  # Proxy didn't work after max retries
-        finally:
+            except Exception as e:
+                print(f"An error occurred while watching Video {video_number} with Proxy {proxy}: {e}")
+                internal_proxies.remove(proxy)
+                retries += 1
+                if retries < max_retries:
+                    print(f"Retrying video {video_number} with a new proxy...\n")
+                    if driver:
+                        driver.quit()  # Quit the current driver
+                    proxy = random.choice(internal_proxies)
+                    driver = get_driver(proxy)
+                else:
+                    print(f"Reached maximum retries for video {video_number}. Moving on to the next video.\n")
+                    if driver:
+                        driver.quit()
+                    # Proxy didn't work after max retries
+    finally:
+        if driver:
             driver.quit()
 
-    return False  # Proxy didn't work even after retries
+    return result_  # Proxy didn't work even after retries
 
 
 if __name__=='__main__':
