@@ -1,4 +1,6 @@
 
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from proxy_utils import get_driver, curated_proxies
@@ -59,7 +61,9 @@ def calculate_cooldown_duration(video_link):
 
 def get_video_duration(driver):
     try:
-        duration_text = driver.find_element(By.CSS_SELECTOR, '.ytp-time-duration').text
+        var_element = WebDriverWait(driver, 90).until(EC.presence_of_element_located((By.CSS_SELECTOR, '.ytp-time-duration')))
+        #duration_text = driver.find_element(By.CSS_SELECTOR, '.ytp-time-duration').text
+        duration_text=var_element.get_attribute('textContent').strip()
         minutes, seconds = map(int, duration_text.split(':'))
         return minutes * 60 + seconds
     except Exception as e:
@@ -91,6 +95,15 @@ def watch_video(video_link, video_number):
             print(f"Watching Video {video_number}: {video_link} with Proxy {proxy}")
             print(f"Video Total seconds: {total_seconds}")
             
+            # try to click play button
+            try:
+                play_button = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'button.ytp-large-play-button')))
+                #play_button = driver.find_element()
+                play_button.click()
+
+            except Exception as e:
+                print(repr(e))
+
             # Check if the video is playing or paused
             is_playing = driver.execute_script(
                 "return document.querySelector('.html5-video-player').paused === false;"
@@ -98,28 +111,25 @@ def watch_video(video_link, video_number):
 
             if not is_playing:
                 # Click the video play button to start playback
-                play_button = driver.find_element(By.CSS_SELECTOR, 'button.ytp-large-play-button')
+                play_button = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'button.ytp-large-play-button')))
+                #play_button = driver.find_element(By.CSS_SELECTOR, 'button.ytp-large-play-button')
                 play_button.click()
 
-            # Find the total duration of the video
-            total_duration_element = driver.find_element(By.CLASS_NAME, 'ytp-time-duration')
-            total_duration_text = total_duration_element.text
-            total_duration_seconds = sum(int(x) * 60 ** i for i, x in enumerate(reversed(total_duration_text.split(":"))))
-
             # Calculate a random start point within the range of 22% to 47%
-            start_point = total_duration_seconds * 0.22 + (total_duration_seconds * 0.25 * random.random())
+            start_point = total_seconds * 0.22 + (total_seconds * 0.25 * random.random())
             
             # Seek to the calculated start point
-            progress_bar = driver.find_element(By.CLASS_NAME, 'ytp-progress-bar')
+            progress_bar = play_button = WebDriverWait(driver, 60).until(EC.presence_of_element_located((By.CLASS_NAME, 'ytp-progress-bar')))
+            #progress_bar = driver.find_element(By.CLASS_NAME, 'ytp-progress-bar')
             progress_element = progress_bar.find_element(By.CLASS_NAME, 'ytp-play-progress')
-            progress_width = start_point / total_duration_seconds
+            progress_width = start_point / total_seconds
             driver.execute_script("arguments[0].style.transform = 'scaleX({})'".format(progress_width), progress_element)
 
             print("Watching video with Proxy:", proxy)
-            print("Video started from {:.2f}%".format(start_point / total_duration_seconds * 100))
+            print("Video started from {:.2f}%".format(start_point / total_seconds * 100))
             
             # Wait for the total duration of the video
-            time.sleep(total_duration_seconds)
+            time.sleep(total_seconds - int(start_point)+1)
             
             print("\nVideo watched successfully!")
             result_ = True  # Proxy worked successfully
