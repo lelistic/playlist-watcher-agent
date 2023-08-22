@@ -3,190 +3,107 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from proxy_utils import get_driver #, curated_proxies
+from proxy_utils import get_driver ,curated_proxies
 import time
 
-from datetime import datetime
 import random
 
-curated_proxies=[None, None]
-
-# Initialize a dictionary to store the number of views for each video
-video_views = {}
 
 def get_video_links_from_playlist(playlist_link):
     driver = get_driver(None)
     video_links = []
-    try:
-        driver.get(playlist_link)
-        
 
-        # Scroll down to load more videos (repeat this if needed)
-        for _ in range(3):
-            scroller = WebDriverWait(driver, 90).until(EC.presence_of_element_located((By.XPATH, "//body")))
-            scroller.send_keys(Keys.END)
-            time.sleep(2)
+    driver.get(playlist_link)
+    
 
-        # Get video links from the playlist
-        video_elements = driver.find_elements(By.CSS_SELECTOR, 'a.ytd-playlist-video-renderer')
-        video_links = [element.get_attribute('href') for element in video_elements]
-
-    except Exception as e:
-        print("An error occurred getting video links:", e)
-        
-    finally:
-        driver.quit()
+    # Get video links from the playlist
+    video_elements = WebDriverWait(driver, 90).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'a.ytd-playlist-video-renderer')))
+    video_links = [element.get_attribute('href') for element in video_elements]
 
     return video_links
 
-def calculate_cooldown_duration(video_link):
+def calculate_cooldown_duration():
     """Function to calculate the final cooldown duration based on various factors"""
-    
-    # Apply dynamic adjustment to cooldown calculation based on real-time feedback
-    min_cooldown = 10
-    max_cooldown = 30
-    cooldown_duration = max_cooldown - (video_views.get(video_link, 0) * 2)
-    cooldown_duration = max(min(cooldown_duration, max_cooldown), min_cooldown)
 
-    # Introduce randomness to cooldown duration
-    cooldown_duration += random.randint(10, 20)
+    return random.randint(2, 10) + random.randint(30, 60)
 
-    # Introduce time-based variation (Overall pacing mechanism)
-    now = datetime.now()
-    hour = now.hour
 
-    if hour >= 17:  # After 5 pm
-        cooldown_duration += random.randint(5, 10)
-    else:  # In the morning
-        cooldown_duration += random.randint(15, 30)
-
-    return cooldown_duration
-
-def get_video_duration(driver):
-    try:
-        var_element = WebDriverWait(driver, 90).until(EC.presence_of_element_located((By.CSS_SELECTOR, '.ytp-time-duration')))
-        #duration_text = driver.find_element(By.CSS_SELECTOR, '.ytp-time-duration').text
-        duration_text=var_element.get_attribute('textContent').strip()
-        minutes, seconds = map(int, duration_text.split(':'))
-        return minutes * 60 + seconds
-    except Exception as e:
-        print(f"Error getting video duration: {e}")
-        return 1
 
 def watch_video(video_link, video_number):
     
     internal_proxies = curated_proxies.copy()
     driver = None
     proxy = random.choice(internal_proxies)
-    print("Proxy: ", proxy)
+    
     result_ = False
-    
-        
-        
+       
     driver = get_driver(proxy)
-    
-    retries = 0
-    max_retries = 3
-    while retries < max_retries:
-    
-        try:
-            driver.get(video_link)
-            
-            # Extract the video duration from the page
-            #total_seconds = get_video_duration(driver)
-             # Find the total duration of the video
-            #total_duration_element = driver.find_element(By.CLASS_NAME, 'ytp-time-duration')
-            total_duration_element = WebDriverWait(driver, 90).until(EC.presence_of_element_located((By.CLASS_NAME, 'ytp-time-duration')))
-            total_duration_text = total_duration_element.text
-            total_seconds = sum(int(x) * 60 ** i for i, x in enumerate(reversed(total_duration_text.split(":"))))
+    try:
+        driver.get(video_link)
+        
+        # Extract the video duration from the page
+        total_duration_element = WebDriverWait(driver, 90).until(EC.presence_of_element_located((By.CLASS_NAME, 'ytp-time-duration')))
+        total_duration_text = total_duration_element.text
+        total_seconds = sum(int(x) * 60 ** i for i, x in enumerate(reversed(total_duration_text.split(":"))))
 
 
-            print(f"Watching Video {video_number}: {video_link} with Proxy {proxy}")
-            print(f"Video Total seconds: {total_seconds}")
-            
-            # try to click play button
-            try:
-                play_button = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'button.ytp-large-play-button')))
-                #play_button = driver.find_element()
-                play_button.click()
+        print(f"Watching Video {video_number}: {video_link} with Proxy {proxy}")
+        print(f"Video Total seconds: {total_seconds}")
 
-            except Exception as e:
-                print("Error on clicking play button", repr(e))
+        # Check if the video is playing or paused
+        is_playing = driver.execute_script(
+            "return document.querySelector('.html5-video-player').paused === false;"
+        )
 
-            # Check if the video is playing or paused
-            is_playing = driver.execute_script(
-                "return document.querySelector('.html5-video-player').paused === false;"
-            )
+        if not is_playing:
+            # Click the video play button to start playback
+            play_button = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'button.ytp-large-play-button')))
+            #play_button = driver.find_element(By.CSS_SELECTOR, 'button.ytp-large-play-button')
+            play_button.click()
 
-            if not is_playing:
-                # Click the video play button to start playback
-                play_button = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'button.ytp-large-play-button')))
-                #play_button = driver.find_element(By.CSS_SELECTOR, 'button.ytp-large-play-button')
-                play_button.click()
+        # Calculate a random start point within the range of 22% to 47%
+        start_point = total_seconds * 0.22 + (total_seconds * 0.25 * random.random())
+        
+        # Seek to the calculated start point
+        progress_bar = play_button = WebDriverWait(driver, 60).until(EC.presence_of_element_located((By.CLASS_NAME, 'ytp-progress-bar')))
+        #progress_bar = driver.find_element(By.CLASS_NAME, 'ytp-progress-bar')
+        progress_element = progress_bar.find_element(By.CLASS_NAME, 'ytp-play-progress')
+        progress_width = start_point / total_seconds
+        driver.execute_script("arguments[0].style.transform = 'scaleX({})'".format(progress_width), progress_element)
 
-            # Calculate a random start point within the range of 22% to 47%
-            start_point = total_seconds * 0.22 + (total_seconds * 0.25 * random.random())
-            
-            # Seek to the calculated start point
-            progress_bar = play_button = WebDriverWait(driver, 60).until(EC.presence_of_element_located((By.CLASS_NAME, 'ytp-progress-bar')))
-            #progress_bar = driver.find_element(By.CLASS_NAME, 'ytp-progress-bar')
-            progress_element = progress_bar.find_element(By.CLASS_NAME, 'ytp-play-progress')
-            progress_width = start_point / total_seconds
-            driver.execute_script("arguments[0].style.transform = 'scaleX({})'".format(progress_width), progress_element)
+        print("Watching video with Proxy:", proxy)
+        print("Video started from {:.2f}%".format(start_point / total_seconds * 100))
+        
+        # Wait for the total duration of the video
+        time.sleep(total_seconds - int(start_point)+1)
+        
+        print("\nVideo watched successfully!")
+        result_ = True  # Proxy worked successfully
+        
 
-            print("Watching video with Proxy:", proxy)
-            print("Video started from {:.2f}%".format(start_point / total_seconds * 100))
-            
-            # Wait for the total duration of the video
-            time.sleep(total_seconds - int(start_point)+1)
-            
-            print("\nVideo watched successfully!")
-            result_ = True  # Proxy worked successfully
-            break
-
-        except Exception as e:
-            print(f"An error occurred while watching Video {video_number} with Proxy {proxy}: {e}")
-            internal_proxies.remove(proxy)
-            retries += 1
-            if retries < max_retries:
-                print(f"Retrying video {video_number} with a new proxy...\n")
-                if driver:
-                    driver.quit()  # Quit the current driver
-                proxy = random.choice(internal_proxies)
-                driver = get_driver(proxy)
-            else:
-                print(f"Reached maximum retries for video {video_number}. Moving on to the next video.\n")
-                if driver:
-                    driver.quit()
-                # Proxy didn't work after max retries
-    
-    if driver:
-        driver.quit()
-
-    return result_  # Proxy didn't work even after retries
+    except Exception as e:
+        print("Error trying to watch video", video_number, "with Proxy",proxy,"|", repr(e))
+    finally:
+        if driver:
+            driver.quit()
+    return result_
 
 
 if __name__=='__main__':
+    default_list=[
+        "https://www.youtube.com/watch?v=CEH-eYSlXrw",
+        "https://www.youtube.com/watch?v=8iVscY4gGbA",
+        "https://www.youtube.com/watch?v=bPc9zz1-Hic"
+    ]
     playlist_link = "https://www.youtube.com/playlist?list=PLMrlsG9QD-qixBzZurP7cv54lCzoSFmEo"
     #playlist_link = "https://www.youtube.com/playlist?list=PLMrlsG9QD-qgy7cWdalPDz7MgCqkLTUPs"
-    video_links = get_video_links_from_playlist(playlist_link)
+    
+    video_links = default_list
     total_videos = len(video_links)
-
-
     # Shuffle the order of videos in the playlist for better diversification
     random.shuffle(video_links)
 
     for video_number, video_link in enumerate(video_links):
-        
-
-        cooldown_duration = calculate_cooldown_duration(video_link)
-
         print(f"\nVideo {video_number+1}/{total_videos}: {video_link}")
-        print(f"Cooldown: {cooldown_duration} seconds")
-        if not watch_video(video_link, video_number + 1):
-            print(f"All proxies failed for video {video_number + 1}. Skipping to the next video.")
-        else:
-            # Update the views count for the video
-            video_views[video_link] = video_views.get(video_link, 0) + 1
-
-            time.sleep(cooldown_duration)
+        watch_video(video_link, video_number + 1)
+        
