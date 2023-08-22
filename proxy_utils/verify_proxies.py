@@ -1,7 +1,8 @@
 import time
 import requests
 from __init__ import is_proxy_working, get_driver
-
+from selenium import webdriver
+from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 # Fetch a list of free proxy servers
