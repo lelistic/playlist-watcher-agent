@@ -26,7 +26,7 @@ def get_driver(proxy):
 
     # Initiate ChromeDriver with the same options and proxy configuration
     driver = webdriver.Chrome(executable_path=path_to_webdriver, options=options)
-    driver.set_page_load_timeout(10)  # Set page load timeout to 10 seconds (adjust as needed)
+    driver.set_page_load_timeout(120)  # Set page load timeout to 120 seconds (adjust as needed)
     return driver
 
 def is_proxy_working(proxy):

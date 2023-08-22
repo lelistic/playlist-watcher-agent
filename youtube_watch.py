@@ -3,11 +3,13 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from proxy_utils import get_driver, curated_proxies
+from proxy_utils import get_driver #, curated_proxies
 import time
 
 from datetime import datetime
 import random
+
+curated_proxies=[None, None]
 
 # Initialize a dictionary to store the number of views for each video
 video_views = {}
@@ -17,11 +19,12 @@ def get_video_links_from_playlist(playlist_link):
     video_links = []
     try:
         driver.get(playlist_link)
-        time.sleep(5)  # Wait for the page to load
+        
 
         # Scroll down to load more videos (repeat this if needed)
         for _ in range(3):
-            driver.find_element(By.XPATH, "//body").send_keys(Keys.END)
+            scroller = WebDriverWait(driver, 90).until(EC.presence_of_element_located((By.XPATH, "//body")))
+            scroller.send_keys(Keys.END)
             time.sleep(2)
 
         # Get video links from the playlist
@@ -29,7 +32,7 @@ def get_video_links_from_playlist(playlist_link):
         video_links = [element.get_attribute('href') for element in video_elements]
 
     except Exception as e:
-        print("An error occurred:", e)
+        print("An error occurred getting video links:", e)
         
     finally:
         driver.quit()
@@ -88,10 +91,16 @@ def watch_video(video_link, video_number):
     
         try:
             driver.get(video_link)
-            time.sleep(20)
-            # Extract the video duration from the page
-            total_seconds = get_video_duration(driver)
             
+            # Extract the video duration from the page
+            #total_seconds = get_video_duration(driver)
+             # Find the total duration of the video
+            #total_duration_element = driver.find_element(By.CLASS_NAME, 'ytp-time-duration')
+            total_duration_element = WebDriverWait(driver, 90).until(EC.presence_of_element_located((By.CLASS_NAME, 'ytp-time-duration')))
+            total_duration_text = total_duration_element.text
+            total_seconds = sum(int(x) * 60 ** i for i, x in enumerate(reversed(total_duration_text.split(":"))))
+
+
             print(f"Watching Video {video_number}: {video_link} with Proxy {proxy}")
             print(f"Video Total seconds: {total_seconds}")
             
@@ -102,7 +111,7 @@ def watch_video(video_link, video_number):
                 play_button.click()
 
             except Exception as e:
-                print(repr(e))
+                print("Error on clicking play button", repr(e))
 
             # Check if the video is playing or paused
             is_playing = driver.execute_script(
