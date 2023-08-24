@@ -18,16 +18,17 @@ def main():
     driver.get(playlist_link)
 
     # Get video links from the playlist
-    video_elements = WebDriverWait(driver, 90).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'a.ytd-playlist-video-renderer')))
+    video_elements = WebDriverWait(driver, 90).until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'a.ytd-playlist-video-renderer')))
     video_links = [element.get_attribute('href') for element in video_elements]
     for video_link in video_links:
         try:
+            print(video_link)
             driver.get(video_link)
             time.sleep(180)
         
         except Exception as e1:
             print("ERROR ","|", repr(e1))
-
+        print("-")
 
 
 if __name__=='__main__':

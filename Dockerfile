@@ -31,11 +31,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the Python script to the container
-COPY youtube_watch.py .
-COPY curated_proxies.txt .
-
-RUN mkdir proxy_utils
-COPY proxy_utils/__init__.py ./proxy_utils/
+COPY . .
 
 # Set environment variables
 ENV PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
